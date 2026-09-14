@@ -99,3 +99,10 @@ financial-tracker/
   explicitly requested. Do not commit or create branches unless asked.
 - **Single-user mode** (D-003): no auth endpoints yet — do not expose the server
   beyond localhost without adding auth first.
+
+<!-- lean-ctx -->
+## lean-ctx
+
+lean-ctx is active — the MCP tools replace native equivalents.
+Full rules: LEAN-CTX.md (open on demand — do not auto-load).
+<!-- /lean-ctx -->
