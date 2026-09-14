@@ -78,7 +78,11 @@ Tree (adjacency list) via `parent_id` (D-004).
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL | |
 
-**Index:** `(user_id, parent_id)`.
+**Indexes:**
+- `(user_id, parent_id)` — tree traversal (recursive CTE).
+- `UNIQUE (user_id, parent_id, LOWER(name))` — sibling name uniqueness,
+  case-insensitive (D-020). Roots (`parent_id IS NULL`) get a partial index or
+  sentinel key for the same rule.
 
 **Tree read (recursive CTE):**
 
@@ -105,7 +109,8 @@ SELECT * FROM cat_tree ORDER BY depth, sort_order;
 | `name` | `VARCHAR(100)` | NOT NULL | Free-text, e.g. "tax-deductible" |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | |
 
-**Unique:** `(user_id, name)`.
+**Index:** `UNIQUE (user_id, LOWER(name))` — case-insensitive uniqueness (D-019);
+`name` stores the user's original casing.
 
 ### `transaction_tags`
 

@@ -266,3 +266,43 @@ when something ambiguous comes up.
     arrive with multi-user auth.
 - **Consequences:** Single binary bootstraps itself; migrations stay pure schema.
   The fixed UUID is a convention the auth middleware (D-013) will use later.
+
+## D-019 — Case-insensitive tag names
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** D-005 requires unique tag names per user, but PostgreSQL's plain
+  `UNIQUE (user_id, name)` is case-sensitive — `Travel` and `travel` would be
+  two tags. Owner confirmed case-insensitive uniqueness is desired while the
+  stored name should keep the user's original casing.
+- **Decision:**
+  - Column stays `name VARCHAR(100)`, storing the casing as first entered (display
+    fidelity).
+  - Uniqueness enforced with a functional index: `UNIQUE (user_id, LOWER(name))`.
+  - All tag-name lookups (create, autocomplete, rename checks) normalize with
+    `LOWER()` in SQL; tag references in budgets/filters keep using `tag_id`, so
+    they are unaffected.
+  - Rejected: `citext` extension (extra managed dependency in every DB) and
+    storing lowercased-only names (loses display casing).
+- **Consequences:** Duplicates blocked regardless of case (API still returns 409
+  CONFLICT, now case-blind); display preserves first-entered casing; every name
+  query must consistently apply `LOWER()` — one convention to follow in Phase 3.
+- **Follow-up:** pattern can be reused for category names if the owner wants the
+  same behavior there (not decided).
+
+## D-020 — Category names unique among siblings, case-insensitive
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Same ambiguity as D-019, but categories are a typed tree — a name
+  like `Food` legitimately exists under different parents (expense vs income).
+  Global uniqueness would be too strict; no rule invites sprawl.
+- **Decision:** Unique **among siblings**, case-insensitive: two children of the
+  same parent may not share a name, regardless of case. Implemented as
+  `UNIQUE (user_id, parent_id, LOWER(name))`.
+- **Consequences:** `Food` under `Expenses` and `Food` under `Income` coexist;
+  `Food` + `food` under the same parent → 409. Updates/moves through the tree
+  re-check the constraint.
+- **Implementation wrinkle:** PostgreSQL treats NULLs as distinct in unique
+  indexes, so root categories (`parent_id IS NULL`) need a partial index or a
+  `COALESCE(parent_id, <sentinel>)` key — handled in the Phase 3 migration.

@@ -113,7 +113,7 @@ Every response follows one of three shapes:
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/tags` | List tags |
-| `POST` | `/tags` | Create (`{ "name": "tax-deductible" }`); 409 on duplicate |
+| `POST` | `/tags` | Create (`{ "name": "tax-deductible" }`); 409 on duplicate — case-insensitive per D-019 |
 | `PATCH` | `/tags/:id` | Rename |
 | `DELETE` | `/tags/:id` | Delete; 422 if referenced by transactions |
 
