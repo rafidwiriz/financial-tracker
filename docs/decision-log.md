@@ -323,3 +323,24 @@ when something ambiguous comes up.
   stay intact; an accidentally closed account can be reopened via PATCH. If
   true deletion is ever wanted (e.g. an account created by mistake), it stays a
   deliberate future decision — schema makes it impossible by accident.
+
+## D-022 — QUERY HTTP method rejected for v1
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Owner asked whether the QUERY method (safe, idempotent; query
+  sent in the request body) is useful here. Surveyed support: chi v5.3.2 routes
+  it natively (`mQUERY`); Go `net/http` has no `MethodQuery` constant yet
+  (cosmetic); browsers/curl accept it; Railway's edge behavior is unknown.
+- **Decision:** Not used in v1. List/report endpoints stay `GET` + query
+  params; mutations stay `POST`/`PATCH`/`DELETE`.
+- **Why not:** the API contract has no client-driven complex queries — budget
+  scoping (D-006) is computed server-side from stored scope definitions, so the
+  client never builds AND/OR trees; URL-encoding pain is a non-issue at
+  single-user scale; the decisive risk is untestable-until-deploy
+  (intermediaries/PaaS edges may drop request bodies on non-GET/POST methods).
+- **Consequences:** Rejecting costs nothing — chi already supports QUERY, so
+  adoption later is a small, contained change.
+- **Revisit trigger:** a frontend (Phase 9) filter-builder that needs
+  client-driven nested queries → new decision entry then, not automatic
+  adoption.
