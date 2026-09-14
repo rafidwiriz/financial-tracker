@@ -1,0 +1,21 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Environment & secrets — never commit real values (only *.example)
+.env
+.env.*
+!.env.example
+
+# Go backend (Phase 2+)
+backend/bin/
+backend/tmp/
+backend/coverage.out
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Logs & temp
+*.log
+*.tmp
