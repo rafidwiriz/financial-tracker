@@ -306,3 +306,20 @@ when something ambiguous comes up.
 - **Implementation wrinkle:** PostgreSQL treats NULLs as distinct in unique
   indexes, so root categories (`parent_id IS NULL`) need a partial index or a
   `COALESCE(parent_id, <sentinel>)` key — handled in the Phase 3 migration.
+
+## D-021 — DELETE on accounts always soft-closes; no hard delete in v1
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Account deletion interacts with the ledger: hard deleting an
+  account breaks `transactions.account_id` (CASCADE would delete money history,
+  RESTRICT would force an error anyway). Owner weighed soft-close vs hard
+  delete (history, reversibility, query cost, audit norms).
+- **Decision:** `DELETE /api/v1/accounts/:id` always sets `is_closed = true` —
+  with or without transactions. No hard delete path in v1; zero-transaction
+  accounts take the same code path. Categories already behave likewise
+  (`deleted_at`, api-design.md).
+- **Consequences:** One rule, no special cases; transaction history and balance
+  stay intact; an accidentally closed account can be reopened via PATCH. If
+  true deletion is ever wanted (e.g. an account created by mistake), it stays a
+  deliberate future decision — schema makes it impossible by accident.

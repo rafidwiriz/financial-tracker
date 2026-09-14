@@ -89,7 +89,7 @@ Every response follows one of three shapes:
 | `POST` | `/categories` | Create (optionally under `parent_id`) |
 | `GET` | `/categories/:id` | Category with children |
 | `PATCH` | `/categories/:id` | Update |
-| `DELETE` | `/categories/:id` | Hard delete only if no transactions reference it; else `422` (use soft delete) |
+| `DELETE` | `/categories/:id` | Soft delete (`deleted_at`); 422 if the category has children — delete children first |
 
 ```jsonc
 // GET /categories?tree=true — response
@@ -107,6 +107,12 @@ Every response follows one of three shapes:
 // POST /categories — request
 { "name": "Public Transit", "type": "expense", "parent_id": "uuid-of-transport" }
 ```
+
+> Soft delete preserves transaction history (D-011). A child whose name
+> collides with a sibling — case-insensitively — fails with 409 CONFLICT
+> (D-020). Deleting a category referenced by transactions is allowed: the
+> transactions keep the reference; the category simply stops appearing in new
+> pickers.
 
 ### Tags
 

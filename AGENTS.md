@@ -13,7 +13,7 @@ control, no shortcuts that require a rewrite later.
 ## Current state
 
 Planning is complete (`docs/`): requirements (FR1–FR8), architecture,
-data model, API contract, conventions, and decision log (D-001…D-018). Phases
+data model, API contract, conventions, and decision log (D-001…D-020). Phases
 0–2 ✅ done — **Phase 3 (Accounts) is next** — see `docs/plan.md`. The scaffold
 (`backend/`) runs locally via Docker Compose: Go 1.26.2, chi, pgx, embedded SQL
 migrations, seeded default user, `/healthz` verified. For a multi-user future

@@ -38,8 +38,8 @@ grows. Violating these without a decision entry is a code-review failure.
 
 ## Environments
 
-Model: **one binary, environment = config** (mirrors D-016 pattern from
-bins-docker).
+Model: **one binary, environment = config** (same principle as the
+bins-docker environments model; our deployment decisions are D-012/D-015).
 
 - Config via env only (`caarlos0/env`): `DATABASE_URL`, `HTTP_ADDR`,
   `LOG_LEVEL`.

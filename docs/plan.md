@@ -76,14 +76,15 @@ they land with the first real feature (accounts), per the layered convention.
    `docs/conventions.md` layering.
 3. Soft-delete behavior where defined (D-011) — `is_closed` for accounts,
    `deleted_at` for categories.
-4. Category tree: recursive CTE for `GET /categories?tree=true` (D-004).
-5. Tag name uniqueness per user (D-005).
+4. Category tree: recursive CTE for `GET /categories?tree=true` (D-004); sibling
+   name uniqueness, case-insensitive (D-020).
+5. Tag name uniqueness per user, case-insensitive (D-005, D-019).
 
 **Exit criteria**
 
 - CRUD endpoints tested by hand with `curl` (accounts, categories incl. tree, tags).
-- `DELETE` on an account with transactions is refused (or soft-closed with a clear
-  error) — decided before implementing; record as D-012 if it changes behavior.
+- `DELETE` always soft-closes accounts (`is_closed=true`) — even with
+  transactions (D-021). Categories likewise (D-011).
 
 ## Phase 4 — Transactions & transfers (the core)
 
