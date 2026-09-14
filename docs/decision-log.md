@@ -155,3 +155,80 @@ when something ambiguous comes up.
   Transactions referencing them remain intact and filterable.
 - **Consequences:** Slightly more query care (always filter `is_closed`/`deleted_at`
   in list endpoints); data is never silently lost.
+
+## D-012 — Railway as the primary deployment target
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Owner wants the app deployable but explicitly does not want a VPS
+  for this project.
+- **Decision:** Primary deployment target is **Railway** (PaaS): GitHub-connected
+  deploys, free `*.up.railway.app` domain, env/secret management. The app itself
+  stays platform-agnostic (D-015).
+- **Consequences:** Railway conventions apply at deploy time (`$PORT`, healthcheck
+  path, env-only config), but nothing Railway-specific enters the code. Cost:
+  Railway's usage-based billing; free domain keeps cost at the platform minimum.
+
+## D-013 — Shared-secret access gate for single-user deployment
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** `AGENTS.md` forbids exposing the API beyond localhost without auth;
+  owner wants the single-user app deployable now. Full user auth is deliberately
+  deferred (D-003).
+- **Decision:** A middleware requires `Authorization: Bearer <API_KEY>` on all
+  `/api/v1/*` routes. `API_KEY` comes from env; if it is unset, the server
+  **refuses to start** (fail closed). This gate is replaced by real user auth
+  (JWT) when multi-user lands — the middleware boundary is the only thing that
+  changes.
+- **Consequences:** Safe public deployment now; one shared credential (rotate-able
+  via env). Not per-user — acceptable for single-user mode. No schema impact.
+
+## D-014 — Migrations run in the container entrypoint
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Deploys must never run against an unmigrated (or half-migrated)
+  schema. A separate "manual migrate" step is easy to forget.
+- **Decision:** The container entrypoint runs `migrate up` (embedded
+  `golang-migrate`) after waiting for DB readiness, and the server **refuses to
+  start if migrations fail**. Single instance → no migration race.
+- **Consequences:** Deploy = safe schema state by construction. Dev keeps `make
+  migrate` for local runs; the entrypoint path is the same code, so behavior
+  matches.
+
+## D-015 — Platform-agnostic deployment artifacts
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Owner wants the app deployable to any service if needed — Railway
+  today, something else tomorrow — without a rewrite.
+- **Decision:** Deployment artifacts are portable by design:
+  - one multi-stage `Dockerfile` (pinned base, `scratch`/alpine runtime, small
+    image);
+  - configuration exclusively via env (`DATABASE_URL`, `HTTP_ADDR`, `API_KEY`,
+    …) — the app never reads platform metadata;
+  - `docker-compose.yml` stays valid for dev **and** any Docker host;
+  - no Railway SDKs, no platform-specific features in code;
+  - per-platform deploy steps live in a runbook (`docs/deployment.md`, Phase 8).
+- **Consequences:** Moving platforms later = new runbook + env values, zero code
+  changes. Slightly more config discipline now.
+
+## D-016 — Managed Postgres on Railway, containerized locally
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** Owner weighed Railway-managed Postgres vs containerized; the app is
+  DB-agnostic (D-015), so this is purely an ops choice per environment.
+- **Decision:**
+  - **Deployed environments (Railway):** managed Postgres (Railway plugin) —
+    backups/upserves handled platform-side. The app connects via `DATABASE_URL`.
+  - **Local dev:** containerized `postgres:16-alpine` in Docker Compose — same
+    pinned image as before, zero behavior change.
+  - The app never distinguishes the two; only the env value differs. Railway's
+    per-environment setup (e.g. dev/stage/prod) maps each environment to its own
+    managed database instance.
+- **Consequences:** Platform-side backup/restore tooling on Railway; local dev
+  stays self-contained. If we ever move hosts, export the dump and point
+  `DATABASE_URL` elsewhere — no code change. Railway environments also give us a
+  place to try stage/prod flows cheaply later.

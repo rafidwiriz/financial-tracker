@@ -31,7 +31,9 @@ This is a **learning-first, long-term project**:
 - All monetary values stored as integers (minor currency units — cents).
 - RESTful API with consistent JSON envelope.
 - PostgreSQL for integrity (ACID transactions, foreign keys, migrations).
-- Runs locally via Docker Compose.
+- Runs locally via Docker Compose; deployable as a single Docker artifact to any
+  container host (D-015). Once deployed, access is gated by a shared secret until
+  real auth lands (D-013).
 - No hard dependency on external services (no bank integrations, no auto exchange rates).
 
 ## Out of scope (v1)

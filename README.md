@@ -19,7 +19,8 @@ reports.
 | 5 | Budgets & interest | ⬜ |
 | 6 | Reports & dashboard | ⬜ |
 | 7 | Testing & hardening | ⬜ |
-| 8 | Frontend (separate app) | ⬜ future |
+| 8 | Deployment (Railway, portable) | ⬜ |
+| 9 | Frontend (separate app) | ⬜ future |
 
 ## Tech stack
 

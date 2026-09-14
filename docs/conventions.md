@@ -24,6 +24,8 @@ grows. Violating these without a decision entry is a code-review failure.
 
 - API: **8080** (HTTP). Dev binds `0.0.0.0`; anything beyond dev binds
   `127.0.0.1` only — this app is not internet-facing until auth exists (D-003).
+- `$PORT` (convention on Railway and other PaaS): if set, it **overrides** the
+  configured HTTP port in any environment.
 - PostgreSQL: **5432 internal only**, never published to the host.
 - Port changes require a decision-log entry.
 

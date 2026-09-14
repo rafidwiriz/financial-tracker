@@ -159,7 +159,41 @@ updates, pagination/filtering, and transfer pairs (D-008).
 
 - No hand-verification needed to trust the API; `make test` covers the paths above.
 
-## Phase 8 — Frontend (future)
+## Phase 8 — Deployment (Railway, portable)
+
+**Status: ⬜** — planned at the end so the whole app can be verified before it goes
+anywhere public.
+
+Goal: deploy the app to Railway on the free domain, with the artifacts remaining
+platform-agnostic (D-012, D-015).
+
+**Tasks**
+
+1. Shared-secret middleware `Authorization: Bearer <API_KEY>` — fail closed when
+   unset (D-013).
+2. Entrypoint runs `migrate up` before starting the server; refuses to start on
+   migration failure (D-014).
+3. Multi-stage Dockerfile: pinned builder + pinned runtime (`scratch`/alpine),
+   non-root user, healthcheck hitting `/healthz`.
+4. Railway service config: env vars (`DATABASE_URL`, `API_KEY`, `PORT`
+   convention), healthcheck path, GitHub-connected deploys, free domain.
+5. Database on Railway per D-016: Railway-managed Postgres per environment
+   (dev/stage/prod); local dev stays containerized `postgres:16-alpine`.
+6. Backup procedure documented and verified: `pg_dump` to local storage
+   (single-user data, small).
+7. Write `docs/deployment.md` runbook: deploy steps, rollback, restore-from-
+   backup, and the exit plan (how to switch hosts without code changes).
+
+**Exit criteria**
+
+- Clean deploy from an empty Railway project: healthz 200, migrations applied,
+  first account created end-to-end via curl with `API_KEY`.
+- Rollback drill documented (re-deploy previous image; restore instructions).
+- Restore-from-backup drill verified once.
+- Runbook `docs/deployment.md` describes migrating to a different host — no
+  Railway-specific behavior required by the code.
+
+## Phase 9 — Frontend (future)
 
 **Status: ⬜**
 
@@ -179,6 +213,8 @@ updates, pagination/filtering, and transfer pairs (D-008).
 | R4 | Minor-unit integer amounts confuse API consumers (cents vs units) | Convention + docs: every money field documented as minor units; frontend format helper later |
 | R5 | Learning curve: raw SQL + manual migrations cause mistakes in prod data | Migrations are plain SQL with up/down pairs; dev + test DBs only until Phase 7 |
 | R6 | Frontend later wants fields the API lacks | API versioning (`/api/v1`) planned; additive fields are non-breaking; ADR-first policy |
+| R7 | Shared `API_KEY` leaks (committed, logged, or weak value) | Env-only, never in `.env.example` values or code; fail-closed startup (D-013); rotation = change env + redeploy; documented in the runbook |
+| R8 | Data loss without a backup habit | Phase 8 includes a verified `pg_dump` restores drill; single-user data is small, so dumps are cheap |
 
 ## Owner answers (2026-09-14)
 
