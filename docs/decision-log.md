@@ -250,3 +250,19 @@ when something ambiguous comes up.
   single-user personal app (D-003): there is no competitive value to protect.
   Apache-2.0's patent grant and AGPL's share-alike were evaluated and rejected
   as unnecessary friction for this project.
+
+## D-018 — Default user bootstrap with a fixed UUID
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** D-003 requires one seeded user in single-user mode. Need a stable,
+  reproducible identity for it and a place to create it.
+- **Decision:**
+  - Fixed UUID `00000000-0000-0000-0000-000000000001`, overridable via
+    `DEFAULT_USER_ID` env.
+  - Seeded at server startup (idempotent `INSERT … ON CONFLICT DO NOTHING`),
+    **never** in a migration — schema migrations stay data-free.
+  - Email `default@local`, empty password hash (no login in MVP); real values
+    arrive with multi-user auth.
+- **Consequences:** Single binary bootstraps itself; migrations stay pure schema.
+  The fixed UUID is a convention the auth middleware (D-013) will use later.

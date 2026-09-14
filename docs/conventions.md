@@ -69,10 +69,12 @@ internal/
 
 ## Middleware order
 
-1. `recoverer` (panic → 500 envelope)
-2. `logger` (`slog`, request id)
-3. `requestID`
-4. `auth` (single-user: inject seeded user id; later: JWT — D-003)
+Applied outer→inner in `server.New` (chi `Use` order):
+
+1. `recoverer` — panic → 500 envelope
+2. `requestID` — `X-Request-ID` in + out (must wrap the logger so it can log the id)
+3. `logger` — one slog line per request
+4. `auth` (Phase 8, D-013) — single-user token gate
 5. `router`
 
 ## Error envelope rules

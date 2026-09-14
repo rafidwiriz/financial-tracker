@@ -35,7 +35,9 @@ phases that contradicts these docs is reconciled in `docs/decision-log.md`.
 
 ## Phase 2 — Scaffold
 
-**Status: ⬜**
+**Status: ✅ done (2026-09-14)** — verified per exit criteria below. The dev
+machine's host port 8080 is occupied by another project, so the host mapping is
+`8081:8080` via `HTTP_PORT` (see `backend/.env`).
 
 Goal: a running server with a health check, connected to PostgreSQL, with
 migrations working.
@@ -47,14 +49,21 @@ migrations working.
 3. `golang-migrate` runner wired into a `make migrate` target.
 4. Docker Compose: `postgres:16-alpine` + app service, Makefile targets
    (`up`, `down`, `logs`, `ps`, `shell`, `migrate`).
-5. Seed the default single user (D-003).
+5. Seed the default single user (D-003, D-018).
 6. Global error handler + standard response envelope (`docs/conventions.md`).
 7. `GET /healthz` returns 200 when DB reachable.
 
 **Exit criteria**
 
-- `make up && curl localhost:8080/healthz` → `200`, from a clean clone.
-- `make migrate` applies all migrations; re-runnable (idempotent).
+- ✅ `make up && curl localhost:8081/healthz` → `200 {"status":"ok"}`
+  (8081 = host mapping; container port is 8080), verified 2026-09-14.
+- ✅ `make migrate` applies all migrations; re-runnable (ran twice, both
+  successful — idempotent).
+- ✅ Default user seeded: `00000000-0000-0000-0000-000000000001`.
+- ✅ Structured request logs (slog, JSON) with `X-Request-ID`.
+
+**Notes for Phase 3:** `internal/{domain,service,handler,dto}` don't exist yet —
+they land with the first real feature (accounts), per the layered convention.
 
 ## Phase 3 — Core domains: accounts, categories, tags
 

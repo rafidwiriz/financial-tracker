@@ -1,0 +1,40 @@
+name: ft-backend
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ft}
+      POSTGRES_DB: ${POSTGRES_DB:-ft}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    image: financial-tracker/backend:local
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://ft:ft@db:5432/ft?sslmode=disable}
+      HTTP_ADDR: ${HTTP_ADDR:-:8080}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  pgdata:

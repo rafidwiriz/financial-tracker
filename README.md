@@ -12,9 +12,9 @@ reports.
 | Phase | What | Status |
 |---|---|---|
 | 0 | Requirements & scope (`FR1–FR8`) | ✅ done |
-| 1 | Architecture, data model, API design, conventions, decisions (`D-001…D-011`) | ✅ done |
-| 2 | Backend scaffold (Go + PostgreSQL) | ⬜ next |
-| 3 | Core domains: accounts, categories, tags | ⬜ |
+| 1 | Architecture, data model, API design, conventions, decisions (`D-001…D-018`) | ✅ done |
+| 2 | Backend scaffold (Go + PostgreSQL) | ✅ done |
+| 3 | Core domains: accounts, categories, tags | ⬜ next |
 | 4 | Transactions & transfers | ⬜ |
 | 5 | Budgets & interest | ⬜ |
 | 6 | Reports & dashboard | ⬜ |
@@ -70,13 +70,15 @@ decision (ADR-style) and is the authority on *why* things are the way they are.
 
 ## Getting started
 
-No runnable code yet — Phase 2 (scaffold) produces the first runnable backend.
-Once it exists, this section will document:
+The backend runs locally via Docker Compose (port 8081 on this machine —
+8080 is taken by another project; set `HTTP_PORT` in `backend/.env` to change):
 
 ```sh
-make up        # start PostgreSQL + API via Docker Compose
-make migrate   # apply migrations
-curl localhost:8080/healthz   # → 200
+cd backend
+make up         # build + start PostgreSQL and API (migrations run on boot)
+curl localhost:8081/healthz   # → {"status":"ok"}
+make migrate    # apply migrations only (idempotent)
+make logs       # tail structured JSON request logs
 ```
 
 ## License

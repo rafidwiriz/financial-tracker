@@ -1,0 +1,7 @@
+.git
+.env
+.env.*
+bin/
+tmp/
+Makefile
+docker-compose.yml
