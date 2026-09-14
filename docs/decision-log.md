@@ -232,3 +232,21 @@ when something ambiguous comes up.
   stays self-contained. If we ever move hosts, export the dump and point
   `DATABASE_URL` elsewhere — no code change. Railway environments also give us a
   place to try stage/prod flows cheaply later.
+
+## D-017 — MIT license
+
+- **Date:** 2026-09-14
+- **Status:** accepted
+- **Context:** No license file existed, so the code was all-rights-reserved by
+  default. The owner wants to publish and share the project (portfolio /
+  learning-first); considered MIT, Apache-2.0, AGPL-3.0, and public-domain
+  options.
+- **Decision:** The project is licensed under the **MIT License** (`LICENSE` at
+  the repository root). Copyright line uses "Financial Tracker contributors"
+  (SPDX: `MIT`).
+- **Consequences:** Anyone may use, modify, and redistribute the code for any
+  purpose — including commercial — provided the copyright notice is preserved
+  in copies. No copyleft or network-share obligations, which suits a
+  single-user personal app (D-003): there is no competitive value to protect.
+  Apache-2.0's patent grant and AGPL's share-alike were evaluated and rejected
+  as unnecessary friction for this project.

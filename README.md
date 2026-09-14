@@ -78,3 +78,7 @@ make up        # start PostgreSQL + API via Docker Compose
 make migrate   # apply migrations
 curl localhost:8080/healthz   # → 200
 ```
+
+## License
+
+[MIT](LICENSE) — see D-017 in [`docs/decision-log.md`](docs/decision-log.md).
