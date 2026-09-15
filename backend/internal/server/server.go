@@ -25,6 +25,10 @@ func New(cfg config.Config, pool *pgxpool.Pool) *http.Server {
 
 	r.Get("/healthz", s.handleHealth)
 
+	r.Route("/api/v1", func(r chi.Router) {
+
+	})
+
 	return &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 }
 
