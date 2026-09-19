@@ -344,3 +344,56 @@ when something ambiguous comes up.
 - **Revisit trigger:** a frontend (Phase 9) filter-builder that needs
   client-driven nested queries → new decision entry then, not automatic
   adoption.
+
+## D-023 — Unset account color is stored as NULL and round-trips as `null`
+
+- **Date:** 2026-09-19
+- **Status:** accepted
+- **Context:** `accounts.color` is nullable (`data-model.md`), the create DTO
+  makes `color` optional, and pgx v5 refuses to scan SQL NULL into a plain Go
+  `string` (`cannot scan NULL into *string`). A repo that scans `color` into
+  `string` would error on every row that has no color — surfacing as
+  INTERNAL_ERROR on read. Found while reviewing `account_repo.go` (Phase 3).
+- **Decision:** Unset color stays SQL NULL end-to-end: create → read. The
+  domain representation of `color` is nullable (`*string`), and every repo
+  scan accepts NULL for it. The API serializes an unset color as `"color":
+  null`.
+- **Consequences:** JSON responses may now contain explicit `null` — the
+  frontend contract treats `color` as `string | null`. Making the column
+  NOT NULL instead was rejected: the docs define it as nullable, so the Go
+  side adapts, not the schema.
+
+## D-024 — PATCH partial update cannot clear a nullable field in v1
+
+- **Date:** 2026-09-19
+- **Status:** accepted
+- **Context:** PATCH updates use `COALESCE($n, column)` with pointer fields.
+  A `*string` field conflates "field absent" with `"field": null` (JSON null
+  also decodes to nil), so SQL cannot distinguish "leave unchanged" from
+  "clear". Harmless for NOT NULL columns (`name`, `type`); for nullable
+  `color` it makes clearing impossible. Found while reviewing
+  `account_repo.go` (Phase 3).
+- **Decision:** In v1, absent and explicit-null are the same: the field is
+  unchanged. Clearing `color` once set is not possible via the API.
+- **Consequences:** Accepted gap at single-user scale; `updated_at` still
+  bumps on an unchanged PATCH (the UPDATE always writes `now()`).
+- **Revisit trigger:** a frontend (Phase 9) "remove color" control → new
+  decision entry on how to express clearing, then.
+
+## D-025 — Closed accounts: hidden from lists, still fetchable by id; DELETE idempotent
+
+- **Date:** 2026-09-19
+- **Status:** accepted
+- **Context:** `GET /accounts` filters `NOT is_closed`, while
+  `GET /accounts/:id` and `DELETE /accounts/:id` do not — and a repeated
+  DELETE returns the account again. `api-design.md` defines DELETE as soft
+  close (D-021) but does not state list/detail behavior for closed accounts.
+  Found while reviewing `account_repo.go` (Phase 3).
+- **Decision:** Lists return only open accounts. Detail lookups still return
+  closed accounts — old transaction views and PATCH-reopen (D-021) need
+  them. DELETE is idempotent: closing an already-closed account succeeds
+  with the same response.
+- **Consequences:** Handlers must not assume a fetched account is open. Phase
+  6 reports/dashboard must decide how closed accounts count in balances.
+- **Revisit trigger:** UI needing "show closed accounts" → add
+  `?include_closed=true` to the list endpoint (additive, non-breaking).
