@@ -92,6 +92,15 @@ financial-tracker/
   project root.
 - **Docs are source of truth.** If code and docs disagree, the docs win — update
   the docs, or add a decision entry if the code was right.
+- **Owner codes (D-026):** the owner writes implementation code — Go source,
+  SQL migrations, tests, build config. Agents plan, review, verify, maintain
+  docs, and propose concrete changes, but don't edit implementation files
+  unless the owner explicitly delegates ("write it for me").
+- **Owner decisions are logged:** every judgment call the owner makes in a
+  thread — an answer, a preference, a resolved ambiguity — is recorded in
+  `docs/decision-log.md` as a new D-### entry (or folded into the relevant
+  existing entry) before the thread ends. No owner decision lives only in
+  chat.
 - **Sequencing:** finish phase N before starting N+1. Phases 3–6 are one domain at
   a time; complete one domain fully before the next.
 - **Networking:** dev DB and builds may need network (Docker pulls, `go mod

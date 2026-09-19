@@ -397,3 +397,35 @@ when something ambiguous comes up.
   6 reports/dashboard must decide how closed accounts count in balances.
 - **Revisit trigger:** UI needing "show closed accounts" → add
   `?include_closed=true` to the list endpoint (additive, non-breaking).
+
+## D-026 — The owner writes the code; agents assist (learning-first)
+
+- **Date:** 2026-09-19
+- **Status:** accepted
+- **Context:** The project is learning-first: the owner builds Go/PostgreSQL
+  skills by doing, one phase at a time. Every new thread starts with an agent
+  that may default to editing code directly — the AGENTS.md workflow says
+  "implement one domain at a time" without saying who writes the code.
+  Automating implementation would quietly take the learning out of the loop
+  and leave the owner unable to maintain the codebase alone.
+- **Decision:** The owner is the coder. Agents default to a hands-off-code
+  posture: they plan, design, review, verify exit criteria, maintain docs,
+  and produce concrete change specifications (file-level diffs, SQL,
+  signatures, step-by-step instructions) — but do not edit implementation
+  files unless the owner explicitly asks them to. An explicit delegation
+  ("write it for me") is scoped to that request.
+- **Scope:** "implementation files" = backend Go source, SQL migrations,
+  tests, and build config (`Dockerfile`, `Makefile`, `docker-compose.yml`,
+  `go.mod`); the same applies to the frontend when it starts (Phase 9).
+  Docs (`docs/`, `AGENTS.md`, `README.md`) and decision entries stay
+  agent-writable — the docs-first workflow depends on it.
+- **Why not:** An always-coding agent is faster per change and matches common
+  AI workflows, but it contradicts the project's stated mission
+  (learning-first, no shortcuts).
+- **Consequences:** Slower per-change velocity, by design; the owner is
+  hands-on with every feature. Agent-side verification (curl / `make test`)
+  matters more, since the agent proposes and the owner applies. New threads
+  read this entry via `decision-log.md` and start from the hands-off
+  default.
+- **Revisit trigger:** The owner finds the tradeoff no longer serves them
+  (e.g. time pressure) → new decision entry making agent-coding the default.
