@@ -15,9 +15,10 @@ type AccountRepo struct {
 }
 
 type AccountUpdate struct {
-	Name  *string
-	Type  *string
-	Color *string
+	Name     *string
+	Type     *string
+	Color    *string
+	IsClosed *bool
 }
 
 func NewAccountRepo(pool *pgxpool.Pool) *AccountRepo {
@@ -40,7 +41,7 @@ func (r *AccountRepo) List(ctx context.Context, userID string) ([]domain.Account
 	for rows.Next() {
 		var a domain.Account
 		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Balance, &a.Currency, &a.IsClosed, &a.Color, &a.CreatedAt, &a.UpdatedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("list accounts: %w", err)
 		}
 		accounts = append(accounts, a)
 	}
@@ -82,13 +83,14 @@ func (r *AccountRepo) Update(ctx context.Context, userID, id string, upd Account
 	var a domain.Account
 	err := r.pool.QueryRow(ctx, `
 		UPDATE accounts
-		SET name = Coalesce($1, name),
-			type = Coalesce($2, type),
-			color = Coalesce($3, color),
+		SET name = COALESCE($1, name),
+			type = COALESCE($2, type),
+			color = COALESCE($3, color),
+			is_closed = COALESCE($4, is_closed),
 			updated_at = NOW()
-		WHERE id = $4 and user_id = $5
+		WHERE id = $5 AND user_id = $6
 		RETURNING id, name, type, balance, currency, is_closed, color, created_at, updated_at
-	`, upd.Name, upd.Type, upd.Color, id, userID).
+	`, upd.Name, upd.Type, upd.Color, upd.IsClosed, id, userID).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Balance, &a.Currency, &a.IsClosed, &a.Color, &a.CreatedAt, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -104,7 +106,7 @@ func (r *AccountRepo) Close(ctx context.Context, userID, id string) (*domain.Acc
 	err := r.pool.QueryRow(ctx, `
 		UPDATE accounts
 		SET is_closed = true, updated_at = NOW()
-		WHERE id = $1 and user_id = $2
+		WHERE id = $1 AND user_id = $2
 		RETURNING id, name, type, balance, currency, is_closed, color, created_at, updated_at
 	`, id, userID).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Balance, &a.Currency, &a.IsClosed, &a.Color, &a.CreatedAt, &a.UpdatedAt)
