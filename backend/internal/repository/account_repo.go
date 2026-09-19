@@ -64,13 +64,13 @@ func (r *AccountRepo) Get(ctx context.Context, userID, id string) (*domain.Accou
 	return &a, nil
 }
 
-func (r *AccountRepo) Create(ctx context.Context, account *domain.Account) (*domain.Account, error) {
+func (r *AccountRepo) Create(ctx context.Context, userID string, account *domain.Account) (*domain.Account, error) {
 	var a domain.Account
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO accounts (user_id, name, type, currency, color)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, name, type, balance, currency, is_closed, color, created_at, updated_at
-	`, account.UserID, account.Name, account.Type, account.Currency, account.Color).
+	`, userID, account.Name, account.Type, account.Currency, account.Color).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Balance, &a.Currency, &a.IsClosed, &a.Color, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create account: %w", err)
@@ -78,7 +78,7 @@ func (r *AccountRepo) Create(ctx context.Context, account *domain.Account) (*dom
 	return &a, nil
 }
 
-func (r *AccountRepo) Update(ctx context.Context, account *domain.Account) (*domain.Account, error) {
+func (r *AccountRepo) Update(ctx context.Context, userID, id string, upd AccountUpdate) (*domain.Account, error) {
 	var a domain.Account
 	err := r.pool.QueryRow(ctx, `
 		UPDATE accounts
@@ -88,7 +88,7 @@ func (r *AccountRepo) Update(ctx context.Context, account *domain.Account) (*dom
 			updated_at = NOW()
 		WHERE id = $4 and user_id = $5
 		RETURNING id, name, type, balance, currency, is_closed, color, created_at, updated_at
-	`, account.Name, account.Type, account.Color, account.ID, account.UserID).
+	`, upd.Name, upd.Type, upd.Color, id, userID).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Balance, &a.Currency, &a.IsClosed, &a.Color, &a.CreatedAt, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
