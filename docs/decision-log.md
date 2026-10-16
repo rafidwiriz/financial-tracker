@@ -429,3 +429,29 @@ when something ambiguous comes up.
   default.
 - **Revisit trigger:** The owner finds the tradeoff no longer serves them
   (e.g. time pressure) → new decision entry making agent-coding the default.
+
+## D-027 — Handlers resolve the acting user via a per-request resolver, backed by the default user in single-user mode
+
+- **Date:** 2026-10-12
+- **Status:** accepted
+- **Context:** Every query is `user_id`-scoped (D-003), but the server is
+  single-user (D-018): there is no auth yet, and handlers don't exist to answer
+  "which user is acting?". Options: hardcode `cfg.DefaultUserID` per handler;
+  pass it into each handler constructor; or abstract it. Hardcoding scatters the
+  value and turns every endpoint into a two-step change when auth lands
+  (Phase 8/9, D-013 gate).
+- **Decision:** Handlers receive a `userResolver func(r *http.Request)
+  (string, error)`, set once in `server.New`; in single-user mode it returns
+  `cfg.DefaultUserID`. Repo calls take the resolved id per-request — never a
+  hardcoded constant. Endpoints keep requiring it even though it is constant
+  today, so the schema guarantees nothing leaks.
+- **Why this shape:** The resolver is a single seam — when multi-user auth
+  arrives, implement the function from the token instead of editing each
+  handler. It costs a small closure and keeps user-scoping visible in every
+  handler signature rather than hidden behind a global.
+- **Consequences:** Handlers must thread `userID` explicitly (a little more
+  ceremony now, no global state). Future auth (D-013/JWT) becomes "replace the
+  resolver", registered once — endpoints stay untouched.
+- **Revisit trigger:** The auth / D-013 gate (Phase 8–9) lands → replace the
+  closure with a real "resolve user from request" implementation; the
+  interface does not change.
