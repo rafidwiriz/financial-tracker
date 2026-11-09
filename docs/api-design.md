@@ -60,7 +60,7 @@ Every response follows one of three shapes:
 | `GET` | `/accounts` | List accounts |
 | `POST` | `/accounts` | Create account |
 | `GET` | `/accounts/:id` | Account details |
-| `PATCH` | `/accounts/:id` | Update (name, type, color) |
+| `PATCH` | `/accounts/:id` | Update (name, type, color, `is_closed` — D-028) |
 | `DELETE` | `/accounts/:id` | Soft close (`is_closed=true`) |
 
 ```jsonc
@@ -80,6 +80,9 @@ Every response follows one of three shapes:
   }
 }
 ```
+
+> `PATCH` may send `is_closed` to reopen (`false`) or close (`true`); an absent
+> field leaves the account unchanged (D-024, D-028). `DELETE` only closes.
 
 ### Categories
 
