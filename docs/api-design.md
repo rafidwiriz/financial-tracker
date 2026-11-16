@@ -21,10 +21,14 @@ Every response follows one of three shapes:
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Validation failed",
-    "details": [ { "field": "amount", "message": "Amount is required" } ]
+    "details": [ { "field": "amount", "message": "is required" } ]
   }
 }
 ```
+
+> `details[].message` is a rule predicate ("is required", "must be at least 3
+> characters"); combine it with a field label client-side — e.g.
+> `"Amount " + message`.
 
 ## Money fields (contract with the frontend)
 
