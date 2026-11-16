@@ -67,11 +67,13 @@ they land with the first real feature (accounts), per the layered convention.
 
 ## Phase 3 — Core domains: accounts, categories, tags
 
-**Status: ⬜** — one domain at a time; each ends with working CRUD.
+**Status: 🔄 in progress** — one domain at a time; each ends with working CRUD.
+Accounts ✅ (2026-11-16); categories, tags pending.
 
 **Tasks (per domain)**
 
-1. Migration (accounts/000001 → categories/000002 → tags/000003).
+1. Migration (users/000001 → accounts/000002 → categories/000003 →
+   tags/000004).
 2. Domain structs → repository (`pgx`) → service → handler, per
    `docs/conventions.md` layering.
 3. Soft-delete behavior where defined (D-011) — `is_closed` for accounts,
@@ -85,6 +87,15 @@ they land with the first real feature (accounts), per the layered convention.
 - CRUD endpoints tested by hand with `curl` (accounts, categories incl. tree, tags).
 - `DELETE` always soft-closes accounts (`is_closed=true`) — even with
   transactions (D-021). Categories likewise (D-011).
+
+**Progress**
+
+- ✅ **Accounts** (2026-11-16): migration `000002`, domain/DTO/repository/
+  service/handler, routes wired via `main` (D-027, D-029). Curl-verified:
+  create (201), list (hides closed), get (closed fetchable), PATCH incl.
+  `is_closed` close/reopen (D-028), DELETE idempotent soft-close (D-021,
+  D-025), unknown id → 404, malformed id → 400, validation details with JSON
+  field names. No ERROR/WARN logs.
 
 ## Phase 4 — Transactions & transfers (the core)
 
