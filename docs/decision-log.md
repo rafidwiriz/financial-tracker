@@ -476,3 +476,38 @@ when something ambiguous comes up.
   separate null state. List endpoints still hide closed accounts (D-025).
 - **Revisit trigger:** If "archive/restore" needs semantics that diverge from
   close/reopen, or a dedicated endpoint is preferred → new decision entry.
+
+## D-029 — Route wiring lives in `main` via a mount callback (breaks the `server` ↔ `handler` cycle)
+
+- **Date:** 2026-11-09
+- **Status:** accepted
+- **Context:** Handlers import the `server` package for the response envelope
+  (`writeData`/`writeError`), `AppError`, `Validate`, and `UserResolver` (D-027).
+  If `server.New` also imported `handler` to construct and register endpoints,
+  Go would see `server → handler → server` and reject the build. The project
+  needs a wiring shape before the first handler is written.
+- **Decision:** `server.New` takes a mount callback and hands it the resolver:
+
+  ```go
+  func New(cfg config.Config, pool *pgxpool.Pool,
+      mount func(r chi.Router, users UserResolver)) *http.Server
+  ```
+
+  `server.New` builds the resolver once from `cfg.DefaultUserID`, applies
+  middleware, and calls `mount` inside `r.Route("/api/v1", ...)`. `main`
+  constructs repositories/services/handlers and registers their routes in the
+  callback; `server` never imports `handler`. `defaultUserResolver` is exported
+  as `DefaultUserResolver` for use by the wiring.
+- **Why this shape:** Keeps the documented layering (`server` = router,
+  middleware, response helpers; `handler` separate; `main` = wiring only) with
+  no file moves and a one-directional `handler → server` dependency. Rejected:
+  moving the envelope helpers to a new `httpx` package (more churn, and `server`
+  still needs them for `/healthz`) and putting handlers in the `server` package
+  (contradicts `conventions.md`).
+- **Consequences:** `server.New` gains a parameter and `main` grows one wiring
+  block per domain. Each new domain (categories, tags, transactions) is
+  registered in `main`; if that block becomes unwieldy, extract a `routes`
+  package later.
+- **Revisit trigger:** `main` wiring becomes large or duplicated enough to hurt
+  → introduce `internal/routes` (or move helpers to `httpx`) under a new
+  decision entry.

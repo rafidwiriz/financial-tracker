@@ -11,4 +11,5 @@ type UpdateAccountRequest struct {
 	Name		*string `json:"name" validate:"omitempty,max=100"`
 	Type		*string `json:"type" validate:"omitempty,oneof=checking savings credit_card cash investment"`
 	Color		*string `json:"color" validate:"omitempty,hexcolor"`
+	IsClosed	*bool	`json:"is_closed"`
 }

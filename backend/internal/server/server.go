@@ -15,8 +15,10 @@ import (
 
 // New wires the chi router with middleware (docs/conventions.md §Middleware
 // order) and routes, and returns an *http.Server ready to serve.
-func New(cfg config.Config, pool *pgxpool.Pool) *http.Server {
+func New(cfg config.Config, pool *pgxpool.Pool,
+	mount func(r chi.Router, users UserResolver)) *http.Server {
 	s := &server{cfg: cfg, pool: pool}
+	users := DefaultUserResolver(cfg.DefaultUserID)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -26,7 +28,7 @@ func New(cfg config.Config, pool *pgxpool.Pool) *http.Server {
 	r.Get("/healthz", s.handleHealth)
 
 	r.Route("/api/v1", func(r chi.Router) {
-
+		mount(r, users)
 	})
 
 	return &http.Server{Addr: cfg.HTTPAddr, Handler: r}
@@ -44,8 +46,8 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	if err := s.pool.Ping(ctx); err != nil {
 		slog.Warn("healthz: db unreachable", "error", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "degraded"})
+		WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "degraded"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

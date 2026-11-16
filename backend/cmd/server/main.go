@@ -1,20 +1,25 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"log/slog"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+    "context"
+    "errors"
+    "log/slog"
+    "net/http"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
-	"github.com/rafidwiriz/financial-tracker/backend/internal/config"
-	"github.com/rafidwiriz/financial-tracker/backend/internal/database"
-	"github.com/rafidwiriz/financial-tracker/backend/internal/repository"
-	"github.com/rafidwiriz/financial-tracker/backend/internal/server"
+    "github.com/go-chi/chi/v5"
+
+    "github.com/rafidwiriz/financial-tracker/backend/internal/config"
+    "github.com/rafidwiriz/financial-tracker/backend/internal/database"
+    "github.com/rafidwiriz/financial-tracker/backend/internal/handler"
+    "github.com/rafidwiriz/financial-tracker/backend/internal/repository"
+    "github.com/rafidwiriz/financial-tracker/backend/internal/server"
+    "github.com/rafidwiriz/financial-tracker/backend/internal/service"
 )
+
 
 // Usage:
 //
@@ -57,7 +62,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(cfg, pool)
+	accountSvc := service.NewAccountService(repository.NewAccountRepo(pool))
+
+	srv := server.New(cfg, pool, func(r chi.Router, users server.UserResolver) {
+		h := handler.NewAccountHandler(accountSvc, users)
+		r.Route("/accounts", func(r chi.Router) {
+			r.Get("/", h.List)
+			r.Post("/", h.Create)
+			r.Get("/{id}", h.Get)
+			r.Patch("/{id}", h.Update)
+			r.Delete("/{id}", h.Delete)
+		})
+	})
 
 	runCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

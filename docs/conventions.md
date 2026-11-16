@@ -63,6 +63,7 @@ internal/
 ```
 
 - One `service` call per handler; one repository boundary per service concern.
+- `server.New` takes a mount callback (`func(r chi.Router, users server.UserResolver)`) and `main` registers domain routes inside it, so `handler` can import `server` helpers without a `server ↔ handler` import cycle (D-029).
 - Queries are hand-written SQL, always scoped by `user_id` (R1).
 - Money fields are `int64` in domain/DTOs — never `float64` (D-010).
 - Dates on the wire: `YYYY-MM-DD`; timestamps: RFC 3339.
