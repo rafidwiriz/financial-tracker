@@ -1,25 +1,24 @@
 package main
 
 import (
-    "context"
-    "errors"
-    "log/slog"
-    "net/http"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-    "github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5"
 
-    "github.com/rafidwiriz/financial-tracker/backend/internal/config"
-    "github.com/rafidwiriz/financial-tracker/backend/internal/database"
-    "github.com/rafidwiriz/financial-tracker/backend/internal/handler"
-    "github.com/rafidwiriz/financial-tracker/backend/internal/repository"
-    "github.com/rafidwiriz/financial-tracker/backend/internal/server"
-    "github.com/rafidwiriz/financial-tracker/backend/internal/service"
+	"github.com/rafidwiriz/financial-tracker/backend/internal/config"
+	"github.com/rafidwiriz/financial-tracker/backend/internal/database"
+	"github.com/rafidwiriz/financial-tracker/backend/internal/handler"
+	"github.com/rafidwiriz/financial-tracker/backend/internal/repository"
+	"github.com/rafidwiriz/financial-tracker/backend/internal/server"
+	"github.com/rafidwiriz/financial-tracker/backend/internal/service"
 )
-
 
 // Usage:
 //

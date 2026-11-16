@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -166,6 +167,7 @@ func writeServiceError(w http.ResponseWriter, err error) {
 			"NOT_FOUND", "account not found", nil))
 		return
 	}
+	slog.Error("account handler", "error", err)
 	server.WriteError(w, server.NewAppError(http.StatusInternalServerError,
 		"INTERNAL_ERROR", "internal server error", nil))
 }
