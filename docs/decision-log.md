@@ -511,3 +511,160 @@ when something ambiguous comes up.
 - **Revisit trigger:** `main` wiring becomes large or duplicated enough to hurt
   → introduce `internal/routes` (or move helpers to `httpx`) under a new
   decision entry.
+
+## D-030 — Category children must match the parent's income/expense type
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** `data-model.md` defines `categories.type` (`income` | `expense`)
+  but says nothing about parent/child consistency. A mixed tree would make
+  category pickers and tree-aware reports ambiguous.
+- **Decision:** A child's `type` must equal its parent's. Creating or re-parenting
+  under a parent of the other type fails with 422 `UNPROCESSABLE_ENTITY`. Changing
+  `type` on a category that has live children also fails with 422. Root
+  categories choose freely. The rule is enforced in the service layer, not the
+  schema — a cross-row rule is not expressible as a simple CHECK/FK, and a
+  trigger would hide the behavior.
+- **Consequences:** Category trees stay homogeneous, so report rollups and
+  pickers never mix income and expense. Moving a subtree across trees later
+  needs an explicit re-type cascade, which v1 does not offer.
+- **Revisit trigger:** A UI wants drag-across-tree moves → new decision on
+  cascade (re-type descendants vs reject).
+
+## D-031 — Category API exposes `icon` and `sort_order`; deterministic ordering
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** `api-design.md`'s category examples showed only `id`, `name`,
+  `type`, and `children`, while `data-model.md` also defines `icon` (nullable)
+  and `sort_order` (default `0`). Leaving them unexposed would make the schema
+  fields dead weight and force a later API change.
+- **Decision:** `icon` (nullable) and `sort_order` (default `0`) are accepted on
+  `POST` and `PATCH` and are returned in every category response. All category
+  lists, tree output, and child arrays are ordered by
+  `sort_order, LOWER(name), id`.
+- **Consequences:** The frontend can render custom ordering and icons without a
+  schema change. `icon` inherits D-024: once set, it cannot be cleared in v1.
+  Deleted categories are excluded from all ordering by D-035.
+- **Revisit trigger:** A UI needs icon clearing or a drag-to-reorder endpoint →
+  new decision (likely explicit `null` handling or a reorder route).
+
+## D-032 — Category DELETE is blocked only by live children
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** `api-design.md` says 422 when the category "has children — delete
+  children first", but with soft deletes (D-011) "has children" could include
+  deleted ones. That reading would let deleted rows block cleanup forever.
+- **Decision:** DELETE fails with 422 only when at least one child has
+  `deleted_at IS NULL`. Children already soft-deleted do not block. Deletion sets
+  `deleted_at = now()` on the single category and never cascades to descendants;
+  transactions referencing it keep the reference (D-011).
+- **Consequences:** Trees are cleaned bottom-up. A parent whose children are all
+  deleted can be deleted, so no live orphan can be left behind. Un-deleting a
+  category is not supported in v1.
+- **Revisit trigger:** An undelete feature is requested → define restore ordering
+  (parent first) and name-collision behavior in a new entry.
+
+## D-033 — Category re-parenting is allowed; cycles and root resets are not
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** `PATCH /categories/:id` exists but the docs never say whether
+  `parent_id` may change, and a tree that allows moves needs cycle protection.
+  D-024 already establishes that an absent nullable field means "unchanged".
+- **Decision:** `PATCH` may set `parent_id` to another category owned by the
+  same user. The target must exist, must not be soft-deleted, and must share the
+  category's `type` (D-030). Setting `parent_id` to the category itself or to any
+  of its descendants fails with 422. An absent or `null` `parent_id` leaves the
+  value unchanged, so v1 cannot move a child back to root.
+- **Consequences:** Tree moves are safe by construction; the descendant check can
+  run as a recursive CTE inside the same DB transaction as the update. Root
+  placement requires a future API affordance.
+- **Revisit trigger:** A UI needs "move to root" → explicit sentinel/flag or a
+  dedicated route, decided in a new entry.
+
+## D-034 — `GET /categories/:id` returns immediate children only
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** `api-design.md` describes the detail response as "Category with
+  children" without saying how deep the nesting goes.
+- **Decision:** The detail response includes direct, non-deleted children only,
+  each shaped like a tree leaf (`children: []`), with no deeper recursion. The
+  full hierarchy stays on `GET /categories?tree=true`.
+- **Consequences:** Detail reads stay constant-cost and the response shape matches
+  the tree endpoint's leaf shape. Clients needing a subtree fetch the tree and
+  descend.
+- **Revisit trigger:** A UI needs a subtree endpoint → add `?depth=` or a
+  dedicated route in a new decision.
+
+## D-035 — Deleted categories are hidden from lists/tree but fetchable by id; DELETE is idempotent
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** D-011 defines soft delete and D-025 defines the equivalent account
+  behavior (closed accounts hidden from lists, still fetchable by id, idempotent
+  DELETE), but `api-design.md` never stated the category read behavior after
+  deletion.
+- **Decision:** `GET /categories` (flat and `?tree=true`) and child arrays exclude
+  `deleted_at IS NOT NULL`. `GET /categories/:id` still returns a deleted
+  category. `DELETE` sets `deleted_at` and returns 200 with the category body;
+  repeating it returns the same 200. Unknown id → 404.
+- **Consequences:** Historical transaction views can still resolve the category
+  they reference, and cleanup is retry-safe. Handlers must not assume a fetched
+  category is live. Phase 6 reports must decide whether deleted categories appear
+  in breakdowns.
+- **Revisit trigger:** A UI wants to browse deleted categories → additive
+  `?include_deleted=true`, like the D-025 account trigger.
+
+## D-036 — Sibling uniqueness via two partial unique indexes (live rows only)
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** D-020 requires case-insensitive name uniqueness among siblings and
+  notes that PostgreSQL treats NULL `parent_id` values as distinct, so a plain
+  `UNIQUE (user_id, parent_id, LOWER(name))` would not constrain root categories.
+  D-020 left the implementation shape (partial index vs. `COALESCE` sentinel) to
+  the Phase 3 migration. Soft-deleted rows also raised the question of whether a
+  deleted name stays reserved.
+- **Decision:** Two partial unique indexes, scoped to live rows:
+
+  ```sql
+  CREATE UNIQUE INDEX categories_sibling_name_uniq
+      ON categories (user_id, parent_id, LOWER(name))
+      WHERE parent_id IS NOT NULL AND deleted_at IS NULL;
+
+  CREATE UNIQUE INDEX categories_root_name_uniq
+      ON categories (user_id, LOWER(name))
+      WHERE parent_id IS NULL AND deleted_at IS NULL;
+  ```
+
+  The service maps SQLSTATE `23505` to 409 `CONFLICT`. A deleted sibling's name
+  is free to reuse.
+- **Consequences:** Root and non-root names are enforced case-insensitively; index
+  names are fixed so migrations and error handling stay predictable. Soft-deleted
+  rows are excluded, so deleting `Food` and re-creating `Food` works. Two deleted
+  rows may share a name, which is harmless because they never appear together.
+- **Why not:** A `COALESCE(parent_id, <sentinel>)` expression index needs a
+  sentinel UUID and makes every lookup carry that magic value; two predicates are
+  self-documenting.
+- **Revisit trigger:** Undelete is added (D-032) → restoring a category may hit a
+  live name collision; define precedence then.
+
+## D-037 — Tag reference guard deferred to Phase 4
+
+- **Date:** 2026-11-17
+- **Status:** accepted
+- **Context:** `api-design.md` specifies `DELETE /tags/:id` → 422 when the tag is
+  referenced by transactions, but `transaction_tags` is created in Phase 4
+  (migration for `transactions`), while the tags domain ships in Phase 3 with
+  migration `000004`.
+- **Decision:** Tags v1 (Phase 3) implement a hard delete with no reference check;
+  the 422 guard is added in Phase 4 together with `transaction_tags`, before
+  Phase 4's exit criteria are checked. Until `transaction_tags` exists nothing
+  can reference a tag, so behavior is already correct.
+- **Consequences:** Phase 3 needs no empty/placeholder query, and Phase 4's task
+  list must include the guard. Tag responses return `{id, name, created_at}` and
+  lists are ordered by `LOWER(name)` (documented in `api-design.md`).
+- **Revisit trigger:** None — the guard lands with the table.

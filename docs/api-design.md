@@ -94,9 +94,9 @@ Every response follows one of three shapes:
 |---|---|---|
 | `GET` | `/categories` | List; `?tree=true` returns nested tree (recursive CTE, D-004) |
 | `POST` | `/categories` | Create (optionally under `parent_id`) |
-| `GET` | `/categories/:id` | Category with children |
-| `PATCH` | `/categories/:id` | Update |
-| `DELETE` | `/categories/:id` | Soft delete (`deleted_at`); 422 if the category has children — delete children first |
+| `GET` | `/categories/:id` | Category with immediate children (D-034) |
+| `PATCH` | `/categories/:id` | Update, including re-parenting (D-033) |
+| `DELETE` | `/categories/:id` | Soft delete; 422 only if live children remain (D-032); idempotent, 200 + body (D-035) |
 
 ```jsonc
 // GET /categories?tree=true — response
@@ -104,31 +104,60 @@ Every response follows one of three shapes:
   "data": [
     {
       "id": "uuid", "name": "Transport", "type": "expense",
+      "parent_id": null, "icon": "car", "sort_order": 10,
       "children": [
-        { "id": "uuid", "name": "Fuel", "type": "expense", "children": [] }
+        { "id": "uuid", "name": "Fuel", "type": "expense",
+          "parent_id": "uuid", "icon": null, "sort_order": 0,
+          "children": [] }
       ]
     }
   ]
 }
 
 // POST /categories — request
-{ "name": "Public Transit", "type": "expense", "parent_id": "uuid-of-transport" }
+{ "name": "Public Transit", "type": "expense", "parent_id": "uuid-of-transport",
+  "icon": "bus", "sort_order": 20 }   // icon and sort_order optional
 ```
 
-> Soft delete preserves transaction history (D-011). A child whose name
-> collides with a sibling — case-insensitively — fails with 409 CONFLICT
-> (D-020). Deleting a category referenced by transactions is allowed: the
-> transactions keep the reference; the category simply stops appearing in new
-> pickers.
+> **Category rules:**
+> - `type` must match the parent's, and a category with live children cannot
+>   change `type` (D-030).
+> - `icon` (nullable) and `sort_order` (default `0`) are optional on create/PATCH
+>   and returned by the API; lists, tree, and child arrays are ordered by
+>   `sort_order, LOWER(name), id` (D-031).
+> - `PATCH` may re-parent; self/descendant targets and type mismatches → 422
+>   (D-033). Absent or `null` `parent_id` means "unchanged" (D-024), so a
+>   category cannot be moved back to root in v1.
+> - `GET /categories/:id` returns direct, non-deleted children only (D-034).
+> - Soft delete preserves transaction history (D-011): deleted categories are
+>   hidden from lists/tree but still fetchable by id, and DELETE is idempotent
+>   (D-035). Deleting a category referenced by transactions is allowed — the
+>   transactions keep the reference.
+> - Sibling name collisions are case-insensitive 409s, and a deleted sibling's
+>   name is free to reuse (D-020, D-036).
 
 ### Tags
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/tags` | List tags |
+| `GET` | `/tags` | List tags, ordered by `LOWER(name)` |
 | `POST` | `/tags` | Create (`{ "name": "tax-deductible" }`); 409 on duplicate — case-insensitive per D-019 |
-| `PATCH` | `/tags/:id` | Rename |
-| `DELETE` | `/tags/:id` | Delete; 422 if referenced by transactions |
+| `PATCH` | `/tags/:id` | Rename; 409 if the new name collides case-insensitively (D-019) |
+| `DELETE` | `/tags/:id` | Hard delete; 422 if referenced by transactions (guard lands in Phase 4, D-037) |
+
+```jsonc
+// GET /tags — response
+{
+  "data": [
+    { "id": "uuid", "name": "tax-deductible", "created_at": "2026-11-17T10:00:00Z" }
+  ]
+}
+```
+
+> Names keep the casing first entered while uniqueness is case-insensitive
+> (D-019). `DELETE` is a hard delete — `transaction_tags.tag_id` is
+> `ON DELETE RESTRICT` — and the reference guard ships together with
+> `transaction_tags` in Phase 4 (D-037).
 
 ### Transactions
 

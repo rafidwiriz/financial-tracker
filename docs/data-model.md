@@ -80,24 +80,31 @@ Tree (adjacency list) via `parent_id` (D-004).
 
 **Indexes:**
 - `(user_id, parent_id)` — tree traversal (recursive CTE).
-- `UNIQUE (user_id, parent_id, LOWER(name))` — sibling name uniqueness,
-  case-insensitive (D-020). Roots (`parent_id IS NULL`) get a partial index or
-  sentinel key for the same rule.
+- `UNIQUE (user_id, parent_id, LOWER(name)) WHERE parent_id IS NOT NULL AND deleted_at IS NULL`
+  — sibling name uniqueness, case-insensitive (D-020, D-036).
+- `UNIQUE (user_id, LOWER(name)) WHERE parent_id IS NULL AND deleted_at IS NULL`
+  — the same rule for roots, which a plain unique index cannot constrain because
+  PostgreSQL treats NULLs as distinct (D-036).
+
+**Rules:** children must share the parent's `type` (service-enforced, D-030);
+`icon` and `sort_order` are exposed through the API (D-031); uniqueness applies
+among live siblings only, so a deleted name can be reused (D-036).
 
 **Tree read (recursive CTE):**
 
 ```sql
 WITH RECURSIVE cat_tree AS (
-  SELECT id, parent_id, name, type, sort_order, 0 AS depth
+  SELECT id, parent_id, name, type, icon, sort_order, 0 AS depth
   FROM categories
   WHERE parent_id IS NULL AND user_id = $1 AND deleted_at IS NULL
   UNION ALL
-  SELECT c.id, c.parent_id, c.name, c.type, c.sort_order, ct.depth + 1
+  SELECT c.id, c.parent_id, c.name, c.type, c.icon, c.sort_order, ct.depth + 1
   FROM categories c
   JOIN cat_tree ct ON ct.id = c.parent_id
-  WHERE c.deleted_at IS NULL
+  WHERE c.user_id = $1 AND c.deleted_at IS NULL
 )
-SELECT * FROM cat_tree ORDER BY depth, sort_order;
+SELECT * FROM cat_tree
+ORDER BY depth, sort_order, LOWER(name), id;
 ```
 
 ### `tags`
@@ -110,7 +117,9 @@ SELECT * FROM cat_tree ORDER BY depth, sort_order;
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | |
 
 **Index:** `UNIQUE (user_id, LOWER(name))` — case-insensitive uniqueness (D-019);
-`name` stores the user's original casing.
+`name` stores the user's original casing. No soft-delete column: `DELETE` is a
+hard delete, and the "referenced by transactions" guard arrives with
+`transaction_tags` in Phase 4 (D-037).
 
 ### `transaction_tags`
 

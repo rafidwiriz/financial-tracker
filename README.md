@@ -14,7 +14,7 @@ reports.
 | 0 | Requirements & scope (`FR1–FR8`) | ✅ done |
 | 1 | Architecture, data model, API design, conventions, decisions (`D-001…D-020`) | ✅ done |
 | 2 | Backend scaffold (Go + PostgreSQL) | ✅ done |
-| 3 | Core domains: accounts, categories, tags | ⬜ next |
+| 3 | Core domains: accounts, categories, tags | 🔄 in progress (accounts ✅) |
 | 4 | Transactions & transfers | ⬜ |
 | 5 | Budgets & interest | ⬜ |
 | 6 | Reports & dashboard | ⬜ |

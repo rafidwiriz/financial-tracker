@@ -68,7 +68,7 @@ they land with the first real feature (accounts), per the layered convention.
 ## Phase 3 — Core domains: accounts, categories, tags
 
 **Status: 🔄 in progress** — one domain at a time; each ends with working CRUD.
-Accounts ✅ (2026-11-16); categories, tags pending.
+Accounts ✅ (2026-11-16); categories in progress; tags pending.
 
 **Tasks (per domain)**
 
@@ -79,14 +79,16 @@ Accounts ✅ (2026-11-16); categories, tags pending.
 3. Soft-delete behavior where defined (D-011) — `is_closed` for accounts,
    `deleted_at` for categories.
 4. Category tree: recursive CTE for `GET /categories?tree=true` (D-004); sibling
-   name uniqueness, case-insensitive (D-020).
+   name uniqueness, case-insensitive (D-020, D-036); type consistency, re-parent
+   guards, delete rules (D-030…D-035).
 5. Tag name uniqueness per user, case-insensitive (D-005, D-019).
 
 **Exit criteria**
 
 - CRUD endpoints tested by hand with `curl` (accounts, categories incl. tree, tags).
 - `DELETE` always soft-closes accounts (`is_closed=true`) — even with
-  transactions (D-021). Categories likewise (D-011).
+  transactions (D-021). Categories likewise (D-011), blocked only by live
+  children and idempotent (D-032, D-035).
 
 **Progress**
 
@@ -96,6 +98,60 @@ Accounts ✅ (2026-11-16); categories, tags pending.
   `is_closed` close/reopen (D-028), DELETE idempotent soft-close (D-021,
   D-025), unknown id → 404, malformed id → 400, validation details with JSON
   field names. No ERROR/WARN logs.
+- 🔄 **Categories** (2026-11-17): scope decisions accepted as D-030…D-037
+  (type consistency, icon/sort_order, live-children delete guard, re-parent and
+  cycle rules, immediate-children detail, deleted-category reads, partial unique
+  indexes, tag guard deferral). Implementation pending — see today's checklist.
+
+### Today — 2026-11-17 (categories)
+
+Owner writes the code (D-026); agent provides the spec and verifies with curl.
+
+**Step 0 — baseline**
+
+- [ ] `make up` + `/healthz` 200 and an accounts smoke call on a fresh boot.
+
+**Step 1 — migration**
+
+- [ ] `000003_create_categories.{up,down}.sql`: table per `data-model.md`
+      §categories, `type` CHECK (`income`/`expense`), self-FK `parent_id`,
+      `(user_id, parent_id)` index, two partial unique indexes (D-036).
+- [ ] Verify `migrate down 1` then up on a disposable DB.
+
+**Step 2 — layers (D-029 wiring)**
+
+- [ ] `internal/domain/category.go` + `internal/dto/category_dto.go` — nullable
+      `parent_id`/`icon`, `sort_order` default `0`, pointer fields for PATCH.
+- [ ] `internal/repository/category_repo.go` — CRUD, recursive-CTE tree,
+      immediate children, live-only filters, `23505` → `ErrConflict`.
+- [ ] `internal/service/category_service.go` — parent ownership, type match
+      (D-030), cycle guard (D-033), live-children delete guard (D-032).
+- [ ] `internal/handler/category_handler.go` + `main` mount block.
+
+**Step 3 — curl verification (exit criteria)**
+
+- [ ] Root + child create → 201; sibling duplicate differing by case → 409;
+      same name under a different parent → 201.
+- [ ] Child under opposite-type parent → 422; move under own descendant → 422;
+      change `type` while live children exist → 422.
+- [ ] `?tree=true`: nesting, `children: []` on leaves,
+      `sort_order, LOWER(name), id` ordering.
+- [ ] Detail returns immediate non-deleted children only (D-034).
+- [ ] Delete with live children → 422; leaf delete → 200; repeat → 200; hidden
+      from list/tree; still fetchable by id (D-032, D-035).
+- [ ] Every repo query carries `user_id`; no ERROR/WARN in `make logs`.
+
+**Step 4 — docs close-out**
+
+- [ ] Update Phase 3 progress; confirm `api-design.md`/`data-model.md` match the
+      implementation; decisions already logged (D-030…D-037).
+
+**Stretch — tags (only if categories are green)**
+
+- [ ] `000004_create_tags.{up,down}.sql` with `UNIQUE (user_id, LOWER(name))`.
+- [ ] CRUD; rename collision → 409; hard delete with the reference guard deferred
+      to Phase 4 (D-037).
+- [ ] Then mark Phase 3 ✅ in `plan.md` and `README.md`.
 
 ## Phase 4 — Transactions & transfers (the core)
 
@@ -118,6 +174,8 @@ updates, pagination/filtering, and transfer pairs (D-008).
 5. `POST /transactions/transfer` + `DELETE /transactions/transfer/:pair_id` —
    atomic dual-leg create/delete.
 6. Tag attach/detach on create/update.
+7. Enforce the tag delete guard (422 when referenced) now that
+   `transaction_tags` exists (D-037).
 
 **Exit criteria**
 
